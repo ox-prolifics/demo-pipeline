@@ -1,7 +1,7 @@
 #!/bin/bash
 #read -p "Run clean up? [y/n]: " opt
 #if [ "$opt" = "y" ]; then `./cleanup.sh 2>&1 | tee cleanup.log`; cat cleanup.log; fi
-`./cleanup.sh 2>&1 | tee cleanup.log`; cat cleanup.log
+# `./cleanup.sh 2>&1 | tee cleanup.log`; cat cleanup.log
 sleep 60
 #read -p "Setup projects? [y/n]: " opt
 #if [ "$opt" = "y" ]; then `./setup_projects.sh ox-prolifics false 2>&1 | tee setProject.log`; cat setProject.log; fi
@@ -14,7 +14,6 @@ sleep 60
 `./setup_prod.sh 2>&1 | tee setProd.log`; cat setProd.log
 #read -p "Setup jenkins? [y/n]: " opt
 #if [ "$opt" = "y" ]; then `./setup_jenkins.sh https://github.com/ox-prolifics/rhocp-appDeploy-homework.git https://master.na311.openshift.opentlc.com 2>&1 |  tee setJenkins.log`; cat setJenkins.log; fi
-`./setup_jenkins.sh https://github.com/ox-prolifics/demo-pipeline.git https://master.na311.openshift.opentlc.com 2>&1 |  tee setJenkins.log`; cat setJenkins.log
+`./setup_jenkins.sh https://github.com/ox-prolifics/demo-pipeline.git https://okd.prolifics.com:8443 2>&1 |  tee setJenkins.log`; cat setJenkins.log
 #read -p "Reset Prod? [y/n]: " opt
-#if [ "$opt" = "y" ]; then `./reset_prod.sh 2>&1 | tee resetProd.log`; cat resetProd.log; fi
-rm -rf *.log
+#if [ "$opt" = "y" ]; then `./reset_prod.sh 2>&1 | tee resetProd.log`; cat resetProd.log; fi# rm -rf *.log

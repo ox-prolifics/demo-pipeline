@@ -14,6 +14,16 @@ podTemplate(
     )
   ]
 ) {
+  def nexusSvcRoute = "http://nexus3.gpte-hw-cicd.svc.cluster.local:8081"
+  def nexusPublicRoute = "http://nexus3-gpte-hw-cicd.apps.na311.openshift.opentlc.com"
+
+  def nexusContainerRegistrySvcRoute = "https://nexus3-registry.gpte-hw-cicd.svc.cluster.local:5000"
+  def nexusContainerRegistryPublicRoute = "https://nexus3-registry-gpte-hw-cicd.apps.na311.openshift.opentlc.com"
+  def nexusContainerRegistryDockerRoute = "docker://nexus3-registry.gpte-hw-cicd.svc.cluster.local:5000"
+
+  def sonarQubeSvcRoute = "sonarqube.gpte-hw-cicd.svc.cluster.local:9000"
+  def sonarQubePublicRoute = "http://sonarqube-gpte-hw-cicd.apps.na311.openshift.opentlc.com"
+
   def projectGitUrl = "https://github.com/ox-prolifics/demo-pipeline.git"
 
   node('skopeo-pod') {
@@ -51,7 +61,9 @@ podTemplate(
       }
 
       // The next two stages should run in parallel
-      stage('Using Maven run the unit tests') {
+      stage('Parallel Test and Analysis') {
+        parallel 'Unit Tests': {
+            // Using Maven run the unit tests
             echo "Running Unit Tests"
 
             // Execute Unit Tests
@@ -60,6 +72,22 @@ podTemplate(
             // This next step is optional.
             // It displays the results of tests in the Jenkins Task Overview
             step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])
+          }, 'Code Analysis': {
+            // Using Maven to call SonarQube for Code Analysis
+            echo "Running Code Analysis"
+
+            // Execute Sonarqube Tests
+            sh "${mvnCmd} sonar:sonar -Dsonar.host.url=${sonarQubePublicRoute} -Dsonar.projectName=${JOB_BASE_NAME} -Dsonar.projectVersion=${devTag}"
+          }
+        failFast: true
+      }
+
+      // Publish the built war file to Nexus
+      stage('Publish to Nexus') {
+        echo "Publish to Nexus"
+
+        // Publish to Nexus
+        sh "${mvnCmd} deploy -DskipTests=true -DaltDeploymentRepository=nexus::default::${nexusSvcRoute}/repository/releases"
       }
 
       // Build the OpenShift Image in OpenShift and tag it.
@@ -117,6 +145,26 @@ podTemplate(
                 rc = openshift.selector("rc", "tasks-${dc_version}").object()
               }
               echo "ReplicationControllers for tasks-${dc_version} are ready"
+            }
+          }
+        }
+      }
+
+      // Copy Image to Nexus container registry
+      stage('Copy Image to Nexus container registry') {
+        echo "Copy image to Nexus container registry"
+        script {
+          sh "skopeo copy --src-tls-verify=false \
+                          --dest-tls-verify=false \
+                          --src-creds openshift:\$(oc whoami -t) \
+                          --dest-creds admin:redhat \
+                          docker://docker-registry.default.svc.cluster.local:5000/${devProject}/tasks:${devTag} \
+                          docker://nexus-registry.gpte-hw-cicd.svc.cluster.local:5000/tasks:${devTag}"
+
+          // Tag the built image with the production tag.
+          openshift.withCluster() {
+            openshift.withProject("${prodProject}") {
+              openshift.tag("${devProject}/tasks:${devTag}", "${devProject}/tasks:${prodTag}")
             }
           }
         }
